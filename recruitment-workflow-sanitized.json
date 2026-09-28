@@ -1,0 +1,453 @@
+{
+  "name": "AI Recruitment Assistant - Sanitized Demo Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "JD Submission",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "JD",
+              "fieldType": "textarea"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        -560,
+        -16
+      ],
+      "id": "8e7b2354-3b85-4461-a029-2b0ea2e99094",
+      "name": "On form submission",
+      "webhookId": "00455502-b693-4824-a24e-1afda6aae94e"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "=data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        352,
+        -160
+      ],
+      "id": "5f3892bc-18cd-49dc-8f83-c198c7057b26",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Job Description:\n{{ $('On form submission').item.json.JD }}\n\nResume Text:\n{{ $json.text }}\n\nExtract the candidate's name and a list of their skills from the resume. Compare skills against the JD and give a match_score from 0-100.\n\nReturn ONLY valid JSON, no markdown, no code fences:\n{\"name\": \"candidate name\", \"skills\": [\"skill1\", \"skill2\"], \"match_score\": 75}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        544,
+        -160
+      ],
+      "id": "6515908b-5c30-4b6a-bc23-03c7bafdde7a",
+      "name": "Message a model"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const raw = $json.output[0].content[0].text;\nconst cleaned = raw.replace(/```json|```/g, '').trim();\nconst parsed = JSON.parse(cleaned);\n\nreturn {\n  json: {\n    name: parsed.name,\n    skills: parsed.skills.join(', '),\n    match_score: parsed.match_score\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        -176
+      ],
+      "id": "dd20c437-0694-4cff-a8fe-f4e5d94703aa",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_RESOURCE_ID",
+          "mode": "list",
+          "cachedResultName": "Resume"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Candidate Resumes"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -352,
+        -16
+      ],
+      "id": "b47d96a0-c40b-4150-aa53-ea52c6de2d9d",
+      "name": "Get row(s) in sheet1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -144,
+        -224
+      ],
+      "id": "e42e8124-9dd1-4511-8eae-b6b950beae72",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json['Resume Link'].match(/[-\\w]{25,}/)[0] }}",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        160,
+        -160
+      ],
+      "id": "f28efbcb-57e6-487e-aec8-83d060456def",
+      "name": "Download file"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_RESOURCE_ID",
+          "mode": "list",
+          "cachedResultName": "Resume"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 600687095,
+          "mode": "list",
+          "cachedResultName": "Ranked Candidates"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.name }}",
+            "Skills": "={{ $json.skills }}",
+            "Match Score": "={{ $json.match_score }}"
+          },
+          "matchingColumns": [
+            "Name"
+          ],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Match Score",
+              "displayName": "Match Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1312,
+        -192
+      ],
+      "id": "cd32989d-af5b-4073-8608-93ec4f238768",
+      "name": "Append or update row in sheet"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_RESOURCE_ID",
+          "mode": "list",
+          "cachedResultName": "Resume"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 600687095,
+          "mode": "list",
+          "cachedResultName": "Ranked Candidates"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        64,
+        -320
+      ],
+      "id": "5db2456f-b6dc-4b42-9928-1ce7ce38002a",
+      "name": "Get row(s) in sheet"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\n// Remove duplicate candidates by Name (keep only the first occurrence)\nconst seen = new Set();\nconst unique = items.filter(item => {\n  const name = item.json['Name'];\n  if (seen.has(name)) return false;\n  seen.add(name);\n  return true;\n});\n\n// Sort by Match Score, descending\nconst sorted = unique.sort((a, b) => b.json['Match Score'] - a.json['Match Score']);\n\n// Assign rank\nreturn sorted.map((item, index) => ({\n  json: {\n    ...item.json,\n    Rank: index + 1\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        -320
+      ],
+      "id": "fb02d2e5-7ed5-43a1-8e1d-bb436d6e4920",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_RESOURCE_ID",
+          "mode": "list",
+          "cachedResultName": "Resume"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 600687095,
+          "mode": "list",
+          "cachedResultName": "Ranked Candidates"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.Name }}",
+            "Match Score": "={{ $json['Match Score'] }}",
+            "Skills": "={{ $json.Skills }}",
+            "Rank": "={{ $json.Rank }}"
+          },
+          "matchingColumns": [
+            "Name"
+          ],
+          "schema": [
+            {
+              "id": "Name",
+              "displayName": "Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Skills",
+              "displayName": "Skills",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Match Score",
+              "displayName": "Match Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rank",
+              "displayName": "Rank",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        -320
+      ],
+      "id": "a89aaf80-2eea-49a4-a234-61be4d5978f9",
+      "name": "Append or update row in sheet1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Download file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download file": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "tags": []
+}
