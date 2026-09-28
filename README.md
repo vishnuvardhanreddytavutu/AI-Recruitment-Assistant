@@ -1,4 +1,4 @@
-# 🤖 AI Recruitment Assistant & Candidate Sourcing Agent
+# 🤖 AI Recruitment Assistant & Candidate Screening Agent
 
 An AI-powered recruitment workflow built with **n8n** to automate candidate resume processing, screening, matching, ranking, and centralized tracking.
 
